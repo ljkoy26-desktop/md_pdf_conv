@@ -1,0 +1,33 @@
+{
+  "name": "md_pdf_conv",
+  "version": "1.0.0",
+  "description": "Markdown to PDF converter (puppeteer)",
+  "main": "src/converter.js",
+  "bin": {
+    "md2pdf": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "sample": "node src/index.js samples/sample.md -o samples/sample.pdf"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ljkoy26-desktop/md_pdf_conv.git"
+  },
+  "keywords": [],
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/ljkoy26-desktop/md_pdf_conv/issues"
+  },
+  "homepage": "https://github.com/ljkoy26-desktop/md_pdf_conv#readme",
+  "dependencies": {
+    "commander": "^15.1.0",
+    "highlight.js": "^11.12.0",
+    "marked": "^18.2.1",
+    "marked-highlight": "^2.2.4",
+    "puppeteer": "^25.18.1"
+  },
+  "allowScripts": {
+    "puppeteer@25.18.1": true
+  }
+}
