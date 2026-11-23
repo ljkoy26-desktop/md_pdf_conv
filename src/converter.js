@@ -114,8 +114,11 @@ export function launchBrowser() {
   return puppeteer.launch();
 }
 
-/** .md 파일 → .pdf 파일 (CLI용) */
-export async function convertFile(inputPath, outputPath, { theme = 'github', paper = 'A4', showHeaderFooter = true } = {}) {
+/**
+ * .md 파일 → .pdf 파일 (CLI용)
+ * browser를 넘기면 재사용(일괄 변환), 없으면 새로 띄우고 닫음
+ */
+export async function convertFile(inputPath, outputPath, { theme = 'github', paper = 'A4', showHeaderFooter = true, browser } = {}) {
   const absInput = path.resolve(inputPath);
   const absOutput = path.resolve(outputPath);
   const title = path.basename(absInput, path.extname(absInput));
@@ -132,11 +135,12 @@ export async function convertFile(inputPath, outputPath, { theme = 'github', pap
   const tmpHtml = path.join(tmpDir, 'index.html');
   await writeFile(tmpHtml, html, 'utf8');
 
-  const browser = await launchBrowser();
+  const ownBrowser = !browser;
+  browser ??= await launchBrowser();
   try {
     await printPdf(browser, { url: pathToFileURL(tmpHtml).href }, { paper, title, showHeaderFooter, outputPath: absOutput });
   } finally {
-    await browser.close();
+    if (ownBrowser) await browser.close();
     await rm(tmpDir, { recursive: true, force: true });
   }
   return absOutput;
