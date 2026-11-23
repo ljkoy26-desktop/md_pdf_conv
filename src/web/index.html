@@ -47,9 +47,14 @@
   .seg button + button { border-left: 1px solid var(--border); }
   .seg button[aria-pressed="true"] { background: var(--seg-active); font-weight: 600; }
 
+  /* 오른쪽 그룹이 남는 공간을 차지하고, 제목 입력칸이 그만큼 늘어남 */
+  /* 공간이 모자라면(기준 460px) 다음 줄로 내려가서 그 줄을 다 씀 */
+  .group.right { flex: 1 1 460px; justify-content: flex-end; min-width: 0; }
+  button, .btn, label.check, select { white-space: nowrap; flex-shrink: 0; }
   #title {
     font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border);
-    border-radius: 6px; padding: 5px 10px; width: 180px;
+    border-radius: 6px; padding: 5px 10px;
+    flex: 1 1 auto; min-width: 180px; max-width: 640px;
   }
 
   main { flex: 1; display: flex; min-height: 0; }
@@ -81,7 +86,7 @@
   @media (max-width: 720px) {
     main[data-mode="split"] { flex-direction: column; }
     main[data-mode="split"] #editorPane { border-right: 0; border-bottom: 1px solid var(--border); }
-    #title { width: 120px; }
+    #title { min-width: 120px; }
   }
 </style>
 </head>
@@ -104,9 +109,7 @@
     <button type="button" data-mode="view">미리보기</button>
   </div>
 
-  <span class="spacer"></span>
-
-  <div class="group">
+  <div class="group right">
     <input id="title" type="text" placeholder="문서 제목" aria-label="문서 제목 (파일명·머리글)">
     <select id="paper" aria-label="용지 크기"></select>
     <label class="check"><input id="hf" type="checkbox" checked> 머리글·쪽번호</label>
