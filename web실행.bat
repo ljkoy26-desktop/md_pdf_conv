@@ -3,6 +3,7 @@ rem md2pdf web viewer launcher
 rem  - Double-click: starts the server and opens the browser
 rem  - Close this window (or Ctrl+C) to stop the server
 rem  - Other port: set PORT=8080 before running
+rem  - Auto restart: the server restarts by itself when src\*.js changes (node --watch)
 chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
@@ -30,5 +31,5 @@ if not exist "node_modules\" (
 rem Open the browser shortly after the server starts
 start "" /min cmd /c "timeout /t 2 /nobreak >nul & start http://localhost:%PORT%"
 
-node src\server.js
+node --watch src\server.js
 if errorlevel 1 pause

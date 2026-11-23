@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node src/index.js",
     "web": "node src/server.js",
+    "dev": "node --watch src/server.js",
     "sample": "node src/index.js samples/sample.md -o samples/sample.pdf"
   },
   "repository": {
