@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>md2pdf 뷰어</title>
+<style>
+  :root {
+    --bg: #f3f4f6; --panel: #ffffff; --border: #d1d9e0; --text: #1f2328; --muted: #59636e;
+    --accent: #1f6feb; --accent-text: #ffffff; --seg-active: #eaeef2; --editor-bg: #ffffff;
+    --drop: rgba(31, 111, 235, .12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --panel: #151b23; --border: #3d444d; --text: #e6edf3; --muted: #9198a1;
+      --accent: #2f81f7; --seg-active: #262c36; --editor-bg: #0d1117; --drop: rgba(47, 129, 247, .18);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column; background: var(--bg); color: var(--text);
+    font: 14px/1.5 "Segoe UI", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  }
+
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+    padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  .brand { font-weight: 700; font-size: 15px; margin-right: 4px; }
+  .group { display: flex; align-items: center; gap: 8px; }
+  .spacer { flex: 1; }
+
+  button, select, .btn {
+    font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer;
+  }
+  button:hover, .btn:hover { background: var(--seg-active); }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .6; cursor: progress; }
+  label.check { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
+
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button[aria-pressed="true"] { background: var(--seg-active); font-weight: 600; }
+
+  #title {
+    font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; width: 180px;
+  }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  #editorPane, #previewPane { flex: 1; min-width: 0; display: flex; }
+  #editorPane { border-right: 1px solid var(--border); }
+  main[data-mode="edit"] #previewPane, main[data-mode="view"] #editorPane { display: none; }
+  main[data-mode="edit"] #editorPane { border-right: 0; }
+
+  textarea {
+    flex: 1; resize: none; border: 0; outline: none; padding: 24px;
+    background: var(--editor-bg); color: var(--text);
+    font: 14px/1.6 Consolas, "D2Coding", "Malgun Gothic", monospace; tab-size: 2;
+  }
+  #previewPane { padding: 24px 16px; overflow: hidden; }
+  iframe {
+    flex: 1; width: 100%; border: 0; background: #fff; border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 8px 24px rgba(0,0,0,.08);
+  }
+
+  footer {
+    display: flex; gap: 16px; padding: 4px 16px; font-size: 12px; color: var(--muted);
+    background: var(--panel); border-top: 1px solid var(--border);
+  }
+  #status.error { color: #cf222e; }
+
+  body.dragging main { outline: 3px dashed var(--accent); outline-offset: -8px; background: var(--drop); }
+
+  @media (max-width: 720px) {
+    main[data-mode="split"] { flex-direction: column; }
+    main[data-mode="split"] #editorPane { border-right: 0; border-bottom: 1px solid var(--border); }
+    #title { width: 120px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">md2pdf</span>
+
+  <div class="group">
+    <label class="btn" for="file">.md 열기</label>
+    <input id="file" type="file" accept=".md,.markdown,.txt,text/markdown" hidden>
+    <button id="sample" type="button">샘플</button>
+  </div>
+
+  <div class="seg" role="group" aria-label="보기 방식">
+    <button type="button" data-mode="edit">편집</button>
+    <button type="button" data-mode="split">분할</button>
+    <button type="button" data-mode="view">미리보기</button>
+  </div>
+
+  <span class="spacer"></span>
+
+  <div class="group">
+    <input id="title" type="text" placeholder="문서 제목" aria-label="문서 제목 (파일명·머리글)">
+    <select id="paper" aria-label="용지 크기"></select>
+    <label class="check"><input id="hf" type="checkbox" checked> 머리글·쪽번호</label>
+    <button id="pdf" class="primary" type="button">PDF 다운로드</button>
+  </div>
+</header>
+
+<main id="main" data-mode="split">
+  <div id="editorPane">
+    <textarea id="src" spellcheck="false" placeholder="여기에 Markdown을 붙여넣거나 .md 파일을 끌어다 놓으세요."></textarea>
+  </div>
+  <div id="previewPane">
+    <iframe id="preview" title="미리보기"></iframe>
+  </div>
+</main>
+
+<footer>
+  <span id="status">준비</span>
+  <span id="count"></span>
+</footer>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const src = $('src'), preview = $('preview'), main = $('main'), statusEl = $('status');
+  const titleEl = $('title'), paperEl = $('paper'), hfEl = $('hf'), pdfBtn = $('pdf');
+
+  // 브라우저 저장소는 실패할 수 있으므로 모두 try/catch
+  const store = {
+    get(k) { try { return localStorage.getItem('md2pdf:' + k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem('md2pdf:' + k, v); } catch {} },
+  };
+
+  function setStatus(text, isError = false) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle('error', isError);
+  }
+
+  function setMode(mode) {
+    main.dataset.mode = mode;
+    document.querySelectorAll('.seg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+    store.set('mode', mode);
+  }
+  document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+  // ---- 미리보기 렌더링 (서버의 PDF와 같은 HTML/CSS) ----
+  let renderSeq = 0, timer;
+  async function render() {
+    const seq = ++renderSeq;
+    try {
+      const res = await fetch('/api/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown: src.value, title: titleEl.value || 'document' }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const html = await res.text();
+      if (seq !== renderSeq) return; // 더 최신 요청이 있음
+      const y = preview.contentWindow?.scrollY ?? 0;
+      preview.addEventListener('load', () => preview.contentWindow.scrollTo(0, y), { once: true });
+      preview.srcdoc = html;
+      setStatus('미리보기 갱신됨');
+    } catch (err) {
+      if (seq === renderSeq) setStatus('렌더링 실패: ' + err.message, true);
+    }
+  }
+  function scheduleRender() {
+    clearTimeout(timer);
+    timer = setTimeout(render, 250);
+    const n = src.value.length;
+    $('count').textContent = n ? `${n.toLocaleString()}자` : '';
+  }
+
+  src.addEventListener('input', () => { store.set('draft', src.value); scheduleRender(); });
+  titleEl.addEventListener('input', () => store.set('title', titleEl.value));
+  titleEl.addEventListener('change', scheduleRender);
+  paperEl.addEventListener('change', () => store.set('paper', paperEl.value));
+  hfEl.addEventListener('change', () => store.set('hf', hfEl.checked ? '1' : '0'));
+
+  // Tab 키로 들여쓰기
+  src.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || e.shiftKey || e.ctrlKey || e.altKey) return;
+    e.preventDefault();
+    document.execCommand('insertText', false, '  ');
+  });
+
+  function loadText(text, name) {
+    src.value = text;
+    if (name) titleEl.value = name.replace(/\.(md|markdown|txt)$/i, '');
+    store.set('draft', src.value);
+    store.set('title', titleEl.value);
+    scheduleRender();
+  }
+
+  // ---- 파일 열기 / 드래그 앤 드롭 ----
+  async function openFile(file) {
+    if (!file) return;
+    loadText(await file.text(), file.name);
+    setStatus(`${file.name} 불러옴`);
+  }
+  $('file').addEventListener('change', (e) => { openFile(e.target.files[0]); e.target.value = ''; });
+
+  let dragDepth = 0;
+  window.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
+  window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); } });
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragDepth = 0;
+    document.body.classList.remove('dragging');
+    openFile(e.dataTransfer.files[0]);
+  });
+
+  $('sample').addEventListener('click', async () => {
+    const res = await fetch('/api/sample');
+    loadText(await res.text(), 'sample.md');
+    setStatus('샘플 불러옴');
+  });
+
+  // ---- PDF 다운로드 ----
+  pdfBtn.addEventListener('click', async () => {
+    pdfBtn.disabled = true;
+    setStatus('PDF 생성 중…');
+    try {
+      const title = (titleEl.value || 'document').trim();
+      const res = await fetch('/api/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown: src.value, title, paper: paperEl.value, headerFooter: hfEl.checked }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const url = URL.createObjectURL(await res.blob());
+      const a = Object.assign(document.createElement('a'), { href: url, download: `${title}.pdf` });
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setStatus(`${title}.pdf 저장됨`);
+    } catch (err) {
+      setStatus('PDF 생성 실패: ' + err.message, true);
+    } finally {
+      pdfBtn.disabled = false;
+    }
+  });
+
+  // ---- 초기화 ----
+  (async () => {
+    try {
+      const { paperSizes } = await (await fetch('/api/config')).json();
+      paperEl.innerHTML = paperSizes.map((s) => `<option>${s}</option>`).join('');
+    } catch {
+      paperEl.innerHTML = '<option>A4</option>';
+    }
+    paperEl.value = store.get('paper') || 'A4';
+    if (!paperEl.value) paperEl.value = 'A4';
+    hfEl.checked = store.get('hf') !== '0';
+    titleEl.value = store.get('title') || '';
+    setMode(store.get('mode') || 'split');
+
+    const draft = store.get('draft');
+    if (draft) { src.value = draft; scheduleRender(); }
+    else $('sample').click();
+  })();
+})();
+</script>
+</body>
+</html>

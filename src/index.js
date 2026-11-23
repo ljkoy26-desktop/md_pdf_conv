@@ -2,7 +2,7 @@
 import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { Command } from 'commander';
-import { convertFile } from './converter.js';
+import { convertFile, PAPER_SIZES } from './converter.js';
 
 const program = new Command();
 
@@ -12,7 +12,8 @@ program
   .argument('<input>', '입력 .md 파일')
   .option('-o, --output <file>', '출력 .pdf 파일 (기본: 입력 파일명.pdf)')
   .option('-t, --theme <name>', '테마 (src/themes/<name>.css)', 'github')
-  .option('-p, --paper <size>', '용지 크기 (A4, Letter 등)', 'A4')
+  .option('-p, --paper <size>', `용지 크기 (${PAPER_SIZES.join(', ')})`, 'A4')
+  .option('--no-header-footer', '머리글(제목)과 페이지 번호 끄기')
   .action(async (input, opts) => {
     try {
       await access(input);
@@ -22,7 +23,11 @@ program
     }
     const output = opts.output ?? path.join(path.dirname(input), path.basename(input, path.extname(input)) + '.pdf');
     try {
-      const out = await convertFile(input, output, { theme: opts.theme, paper: opts.paper });
+      const out = await convertFile(input, output, {
+        theme: opts.theme,
+        paper: opts.paper,
+        showHeaderFooter: opts.headerFooter,
+      });
       console.log(`완료: ${out}`);
     } catch (err) {
       console.error(`변환 실패: ${err.message}`);
