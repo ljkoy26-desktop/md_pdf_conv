@@ -231,6 +231,15 @@ const server = http.createServer((req, res) => {
   });
 });
 
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`포트 ${PORT}을(를) 이미 사용 중입니다. 웹 뷰어가 이미 켜져 있거나, 다른 포트를 쓰세요 (예: set PORT=8080).`);
+  } else {
+    console.error(err);
+  }
+  process.exit(1);
+});
+
 server.listen(PORT, HOST, () => {
   console.log(`md2pdf 웹 뷰어: ${ORIGIN}`);
   console.log('종료: Ctrl+C');
