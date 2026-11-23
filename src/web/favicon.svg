@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- 빨간 배경 (PDF) -->
+  <rect width="32" height="32" rx="7" fill="#d93f3f"/>
+  <!-- 흰 문서 + 접힌 모서리 -->
+  <path d="M9 5h10l6 6v16a1.5 1.5 0 0 1-1.5 1.5h-14A1.5 1.5 0 0 1 8 27V6.5A1.5 1.5 0 0 1 9 5z" fill="#ffffff"/>
+  <path d="M19 5v4.5a1.5 1.5 0 0 0 1.5 1.5H25z" fill="#f2b8b8"/>
+  <!-- 아래 화살표 (변환/다운로드) -->
+  <path d="M16.5 13v8.5" stroke="#d93f3f" stroke-width="3" stroke-linecap="round"/>
+  <path d="M12.5 18l4 4 4-4" fill="none" stroke="#d93f3f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

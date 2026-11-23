@@ -191,7 +191,7 @@ async function handle(req, res) {
 
   if (req.method === 'GET') {
     if (p === '/' || p === '/index.html') return serveStatic(res, WEB_DIR, 'index.html');
-    if (p === '/favicon.ico') return send(res, 204, '');
+    if (p === '/favicon.ico' || p === '/favicon.svg') return serveStatic(res, WEB_DIR, 'favicon.svg');
     if (p.startsWith('/assets/katex/')) return serveStatic(res, KATEX_DIR, p.slice('/assets/katex/'.length));
     if (p.startsWith('/samples/')) return serveStatic(res, SAMPLES_DIR, p.slice('/samples/'.length), UPLOAD_HEADERS);
     if (p === '/api/sample') return send(res, 200, await readFile(path.join(SAMPLES_DIR, 'sample.md'), 'utf8'));
