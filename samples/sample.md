@@ -9,6 +9,12 @@
 | 언어 | Node.js |
 | 엔진 | puppeteer |
 
+## 이미지
+
+로컬 이미지(상대 경로)도 들어갑니다.
+
+![변환 과정](./images/pipeline.svg)
+
 ## 코드 블록
 
 ```js

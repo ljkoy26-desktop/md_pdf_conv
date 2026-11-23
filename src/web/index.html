@@ -72,7 +72,8 @@
     display: flex; gap: 16px; padding: 4px 16px; font-size: 12px; color: var(--muted);
     background: var(--panel); border-top: 1px solid var(--border);
   }
-  #status.error { color: #cf222e; }
+  #status.error, #images.warn { color: #cf222e; }
+  #doc { max-width: 220px; }
 
   body.dragging main { outline: 3px dashed var(--accent); outline-offset: -8px; background: var(--drop); }
 
@@ -88,9 +89,12 @@
   <span class="brand">md2pdf</span>
 
   <div class="group">
-    <label class="btn" for="file">.md 열기</label>
-    <input id="file" type="file" accept=".md,.markdown,.txt,text/markdown" hidden>
+    <label class="btn" for="folder" title="이미지가 포함된 문서는 폴더째 여세요">폴더 열기</label>
+    <input id="folder" type="file" webkitdirectory multiple hidden>
+    <label class="btn" for="file" title=".md와 이미지 파일을 함께 선택할 수 있습니다">파일 열기</label>
+    <input id="file" type="file" multiple accept=".md,.markdown,.txt,text/markdown,image/*" hidden>
     <button id="sample" type="button">샘플</button>
+    <select id="doc" aria-label="문서 선택" hidden></select>
   </div>
 
   <div class="seg" role="group" aria-label="보기 방식">
@@ -111,7 +115,7 @@
 
 <main id="main" data-mode="split">
   <div id="editorPane">
-    <textarea id="src" spellcheck="false" placeholder="여기에 Markdown을 붙여넣거나 .md 파일을 끌어다 놓으세요."></textarea>
+    <textarea id="src" spellcheck="false" placeholder="여기에 Markdown을 붙여넣거나 .md 파일·폴더를 끌어다 놓으세요.&#10;이미지가 있는 문서는 폴더째 끌어다 놓으면 이미지도 함께 들어갑니다."></textarea>
   </div>
   <div id="previewPane">
     <iframe id="preview" title="미리보기"></iframe>
@@ -120,20 +124,41 @@
 
 <footer>
   <span id="status">준비</span>
+  <span id="images"></span>
   <span id="count"></span>
 </footer>
 
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const src = $('src'), preview = $('preview'), main = $('main'), statusEl = $('status');
-  const titleEl = $('title'), paperEl = $('paper'), hfEl = $('hf'), pdfBtn = $('pdf');
+  const src = $('src'), preview = $('preview'), main = $('main'), statusEl = $('status'), imagesEl = $('images');
+  const titleEl = $('title'), paperEl = $('paper'), hfEl = $('hf'), pdfBtn = $('pdf'), docEl = $('doc');
+
+  const IMG_RE = /\.(png|jpe?g|gif|webp|avif|bmp|ico|svg)$/i;
+  const MD_RE = /\.(md|markdown|txt)$/i;
+  const SKIP_DIRS = new Set(['node_modules', '.git']);
 
   // 브라우저 저장소는 실패할 수 있으므로 모두 try/catch
   const store = {
     get(k) { try { return localStorage.getItem('md2pdf:' + k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem('md2pdf:' + k, v); } catch {} },
   };
+
+  /* ---- 문서/이미지 상태 ----
+   * sid  : 서버에 올린 이미지 묶음 ID
+   * base : 현재 문서의 기준 경로 ('/s/<sid>/<폴더>/' | '/samples/' | '')
+   *        미리보기·PDF 모두 이 경로를 <base href>로 사용 → ./img.png 가 같은 이미지로 연결
+   * docs : 열린 폴더 안의 .md 파일들 (상대경로 → File)
+   */
+  let sid = store.get('sid');
+  let base = store.get('base') || '';
+  let docs = new Map();
+
+  const encPath = (p) => p.split('/').map(encodeURIComponent).join('/');
+  const dirOf = (p) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/') + 1) : '');
+  const baseName = (p) => p.slice(p.lastIndexOf('/') + 1);
+  function setBase(b) { base = b; store.set('base', b); }
+  function newSession() { sid = crypto.randomUUID(); store.set('sid', sid); }
 
   function setStatus(text, isError = false) {
     statusEl.textContent = text;
@@ -147,7 +172,7 @@
   }
   document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
-  // ---- 미리보기 렌더링 (서버의 PDF와 같은 HTML/CSS) ----
+  /* ---- 미리보기 렌더링 (서버의 PDF와 같은 HTML/CSS) ---- */
   let renderSeq = 0, timer;
   async function render() {
     const seq = ++renderSeq;
@@ -155,13 +180,16 @@
       const res = await fetch('/api/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markdown: src.value, title: titleEl.value || 'document' }),
+        body: JSON.stringify({ markdown: src.value, title: titleEl.value || 'document', base }),
       });
       if (!res.ok) throw new Error(await res.text());
       const html = await res.text();
       if (seq !== renderSeq) return; // 더 최신 요청이 있음
       const y = preview.contentWindow?.scrollY ?? 0;
-      preview.addEventListener('load', () => preview.contentWindow.scrollTo(0, y), { once: true });
+      preview.addEventListener('load', () => {
+        preview.contentWindow.scrollTo(0, y);
+        checkImages();
+      }, { once: true });
       preview.srcdoc = html;
       setStatus('미리보기 갱신됨');
     } catch (err) {
@@ -173,6 +201,21 @@
     timer = setTimeout(render, 250);
     const n = src.value.length;
     $('count').textContent = n ? `${n.toLocaleString()}자` : '';
+  }
+
+  /** 미리보기에서 깨진 이미지 표시 */
+  function checkImages() {
+    const imgs = [...(preview.contentDocument?.images ?? [])];
+    const broken = imgs.filter((i) => i.complete && i.naturalWidth === 0).map((i) => i.getAttribute('src'));
+    imagesEl.classList.toggle('warn', broken.length > 0);
+    if (broken.length) {
+      const names = broken.slice(0, 3).join(', ') + (broken.length > 3 ? ` 외 ${broken.length - 3}개` : '');
+      imagesEl.textContent = `이미지 ${broken.length}개 없음: ${names} → 이미지가 든 폴더째 열거나 이미지 파일을 끌어다 놓으세요`;
+      imagesEl.title = broken.join('\n');
+    } else {
+      imagesEl.textContent = imgs.length ? `이미지 ${imgs.length}개` : '';
+      imagesEl.title = '';
+    }
   }
 
   src.addEventListener('input', () => { store.set('draft', src.value); scheduleRender(); });
@@ -196,13 +239,118 @@
     scheduleRender();
   }
 
-  // ---- 파일 열기 / 드래그 앤 드롭 ----
-  async function openFile(file) {
-    if (!file) return;
-    loadText(await file.text(), file.name);
-    setStatus(`${file.name} 불러옴`);
+  /* ---- 파일/폴더 열기 ---- */
+
+  /** 이미지 업로드 (동시 6개) */
+  async function uploadImages(list, prefix) {
+    const queue = list.filter((x) => IMG_RE.test(x.path));
+    const total = queue.length;
+    let done = 0;
+    const failed = [];
+    async function worker() {
+      while (queue.length) {
+        const it = queue.shift();
+        try {
+          const res = await fetch(`/api/s/${sid}/f/${encPath(prefix + it.path)}`, { method: 'PUT', body: it.file });
+          if (!res.ok) throw new Error(await res.text());
+        } catch (err) {
+          failed.push(`${it.path} (${err.message})`);
+        }
+        setStatus(`이미지 올리는 중 ${++done}/${total}`);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(6, total) }, worker));
+    return { ok: total - failed.length, failed };
   }
-  $('file').addEventListener('change', (e) => { openFile(e.target.files[0]); e.target.value = ''; });
+
+  /** 기본으로 열 문서: 가장 얕은 위치의 README/index → 그 외 가장 얕은 것 */
+  function pickDefault(paths) {
+    const depth = (p) => p.split('/').length;
+    const pref = (p) => (/^(readme|index)\./i.test(baseName(p)) ? 0 : 1);
+    return [...paths].sort((a, b) => depth(a) - depth(b) || pref(a) - pref(b) || a.localeCompare(b))[0];
+  }
+
+  function fillDocSelect() {
+    const paths = [...docs.keys()].sort((a, b) => a.localeCompare(b));
+    docEl.innerHTML = paths.map((p) => `<option value="${p.replace(/"/g, '&quot;')}">${p.replace(/</g, '&lt;')}</option>`).join('');
+    docEl.hidden = paths.length < 2;
+  }
+
+  async function openDoc(p) {
+    const file = docs.get(p);
+    if (!file) return;
+    docEl.value = p;
+    setBase(`/s/${sid}/${encPath(dirOf(p))}`);
+    loadText(await file.text(), baseName(p));
+  }
+  docEl.addEventListener('change', () => openDoc(docEl.value));
+
+  /** list: [{ path: '폴더/하위/a.md', file: File }] */
+  async function openEntries(list) {
+    list = list.filter((x) => !x.path.split('/').some((seg) => SKIP_DIRS.has(seg)));
+    const mds = list.filter((x) => MD_RE.test(x.path));
+    const imgs = list.filter((x) => IMG_RE.test(x.path));
+    if (!mds.length && !imgs.length) return setStatus('열 수 있는 .md 또는 이미지 파일이 없습니다', true);
+
+    let result, opened = '';
+    if (mds.length) {
+      // 새 문서 묶음 → 새 이미지 세션
+      newSession();
+      docs = new Map(mds.map((x) => [x.path, x.file]));
+      fillDocSelect();
+      result = await uploadImages(imgs, '');
+      const first = pickDefault(mds.map((x) => x.path));
+      await openDoc(first);
+      opened = `${baseName(first)} 열림` + (mds.length > 1 ? ` (문서 ${mds.length}개 중)` : '');
+    } else {
+      // 이미지만 → 현재 문서 폴더에 추가
+      if (!sid || !base.startsWith(`/s/${sid}/`)) {
+        newSession();
+        setBase(`/s/${sid}/`);
+      }
+      const dir = decodeURIComponent(base.slice(`/s/${sid}/`.length));
+      result = await uploadImages(imgs, dir);
+      opened = '이미지 추가됨';
+      scheduleRender();
+    }
+    const parts = [opened];
+    if (result.ok) parts.push(`이미지 ${result.ok}개 올림`);
+    if (result.failed.length) parts.push(`실패 ${result.failed.length}개: ${result.failed.slice(0, 2).join(', ')}`);
+    setStatus(parts.join(' · '), result.failed.length > 0);
+  }
+
+  function run(promise) {
+    promise.catch((err) => setStatus('열기 실패: ' + err.message, true));
+  }
+
+  $('file').addEventListener('change', (e) => {
+    run(openEntries([...e.target.files].map((f) => ({ path: f.name, file: f }))));
+    e.target.value = '';
+  });
+  $('folder').addEventListener('change', (e) => {
+    run(openEntries([...e.target.files].map((f) => ({ path: f.webkitRelativePath || f.name, file: f }))));
+    e.target.value = '';
+  });
+
+  /** 끌어다 놓은 폴더를 재귀로 펼침 */
+  async function walkEntries(entries) {
+    const out = [];
+    async function walk(entry) {
+      if (entry.isFile) {
+        const file = await new Promise((res, rej) => entry.file(res, rej));
+        out.push({ path: entry.fullPath.replace(/^\//, ''), file });
+      } else if (entry.isDirectory && !SKIP_DIRS.has(entry.name)) {
+        const reader = entry.createReader();
+        let batch;
+        do {
+          batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+          for (const e of batch) await walk(e);
+        } while (batch.length);
+      }
+    }
+    for (const e of entries) await walk(e);
+    return out;
+  }
 
   let dragDepth = 0;
   window.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
@@ -212,16 +360,25 @@
     e.preventDefault();
     dragDepth = 0;
     document.body.classList.remove('dragging');
-    openFile(e.dataTransfer.files[0]);
+    // DataTransfer는 이벤트가 끝나면 비워지므로 동기적으로 먼저 꺼내둠
+    const entries = [...e.dataTransfer.items].filter((i) => i.kind === 'file').map((i) => i.webkitGetAsEntry?.()).filter(Boolean);
+    const files = [...e.dataTransfer.files];
+    run((async () => {
+      const list = entries.length ? await walkEntries(entries) : files.map((f) => ({ path: f.name, file: f }));
+      await openEntries(list);
+    })());
   });
 
   $('sample').addEventListener('click', async () => {
     const res = await fetch('/api/sample');
+    docs = new Map();
+    fillDocSelect();
+    setBase('/samples/');
     loadText(await res.text(), 'sample.md');
     setStatus('샘플 불러옴');
   });
 
-  // ---- PDF 다운로드 ----
+  /* ---- PDF 다운로드 ---- */
   pdfBtn.addEventListener('click', async () => {
     pdfBtn.disabled = true;
     setStatus('PDF 생성 중…');
@@ -230,7 +387,7 @@
       const res = await fetch('/api/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markdown: src.value, title, paper: paperEl.value, headerFooter: hfEl.checked }),
+        body: JSON.stringify({ markdown: src.value, title, paper: paperEl.value, headerFooter: hfEl.checked, base }),
       });
       if (!res.ok) throw new Error(await res.text());
       const url = URL.createObjectURL(await res.blob());
@@ -247,7 +404,7 @@
     }
   });
 
-  // ---- 초기화 ----
+  /* ---- 초기화 ---- */
   (async () => {
     try {
       const { paperSizes } = await (await fetch('/api/config')).json();

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="120" viewBox="0 0 560 120" font-family="Malgun Gothic, Noto Sans KR, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#59636e"/>
+    </marker>
+  </defs>
+  <rect width="560" height="120" fill="#ffffff"/>
+  <g font-size="15" text-anchor="middle">
+    <rect x="20" y="35" width="130" height="50" rx="8" fill="#ddf4ff" stroke="#54aeff"/>
+    <text x="85" y="66" fill="#0969da">Markdown</text>
+    <rect x="215" y="35" width="130" height="50" rx="8" fill="#fbefff" stroke="#c297ff"/>
+    <text x="280" y="66" fill="#8250df">HTML + CSS</text>
+    <rect x="410" y="35" width="130" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b"/>
+    <text x="475" y="66" fill="#1a7f37">PDF</text>
+  </g>
+  <g stroke="#59636e" stroke-width="2" marker-end="url(#arrow)">
+    <line x1="152" y1="60" x2="211" y2="60"/>
+    <line x1="347" y1="60" x2="406" y2="60"/>
+  </g>
+  <g font-size="11" fill="#59636e" text-anchor="middle">
+    <text x="182" y="50">marked</text>
+    <text x="377" y="50">puppeteer</text>
+  </g>
+</svg>
