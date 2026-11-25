@@ -15,7 +15,7 @@ const HLJS_CSS = fileURLToPath(import.meta.resolve('highlight.js/styles/github.c
 export const KATEX_DIR = path.dirname(fileURLToPath(import.meta.resolve('katex')));
 
 export const PAPER_SIZES = ['A4', 'A3', 'A5', 'Letter', 'Legal'];
-const MARGIN = { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' };
+const MARGIN = { top: '20mm', bottom: '20mm', left: '10mm', right: '10mm' };
 
 const marked = new Marked(
   { gfm: true },
@@ -75,7 +75,7 @@ ${extraCss ? `<style>${extraCss}</style>` : ''}
 }
 
 function headerFooter(title) {
-  const style = "font-family:'Malgun Gothic','Noto Sans KR',sans-serif;font-size:8pt;color:#8c959f;width:100%;padding:0 15mm;";
+  const style = "font-family:'Malgun Gothic','Noto Sans KR',sans-serif;font-size:8pt;color:#8c959f;width:100%;padding:0 10mm;";
   return {
     displayHeaderFooter: true,
     headerTemplate: `<div style="${style}text-align:right;">${escapeHtml(title)}</div>`,

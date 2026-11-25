@@ -39,8 +39,8 @@ const MIME = {
 };
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.ico', '.svg']);
 
-// 미리보기를 "종이"처럼 보이게: A4 인쇄 폭(210mm - 좌우 여백 30mm)
-const PREVIEW_CSS = `body { max-width: 180mm; margin: 0 auto; padding: 40px 24px 80px; }`;
+// 미리보기는 창 폭을 넉넉하게 사용 (너무 넓은 화면에서만 상한)
+const PREVIEW_CSS = `body { max-width: 1400px; margin: 0 auto; padding: 24px 32px 80px; }`;
 
 /* ---------- 브라우저 (PDF용, 재사용) ---------- */
 let browserPromise;
