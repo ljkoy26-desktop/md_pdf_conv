@@ -3,7 +3,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { renderHtml, printPdf, launchBrowser, KATEX_DIR, PAPER_SIZES } from './converter.js';
+import { renderHtml, printPdf, launchBrowser, listThemes, KATEX_DIR, PAPER_SIZES } from './converter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = path.join(__dirname, 'web');
@@ -195,7 +195,7 @@ async function handle(req, res) {
     if (p.startsWith('/assets/katex/')) return serveStatic(res, KATEX_DIR, p.slice('/assets/katex/'.length));
     if (p.startsWith('/samples/')) return serveStatic(res, SAMPLES_DIR, p.slice('/samples/'.length), UPLOAD_HEADERS);
     if (p === '/api/sample') return send(res, 200, await readFile(path.join(SAMPLES_DIR, 'sample.md'), 'utf8'));
-    if (p === '/api/config') return send(res, 200, JSON.stringify({ paperSizes: PAPER_SIZES }), 'application/json');
+    if (p === '/api/config') return send(res, 200, JSON.stringify({ paperSizes: PAPER_SIZES, themes: await listThemes() }), 'application/json');
     return send(res, 404, 'Not Found');
   }
 

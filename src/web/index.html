@@ -111,6 +111,7 @@
 
   <div class="group right">
     <input id="title" type="text" placeholder="문서 제목" aria-label="문서 제목 (파일명·머리글)">
+    <select id="theme" aria-label="테마" title="테마 (미리보기·PDF 공통)"></select>
     <select id="paper" aria-label="용지 크기"></select>
     <label class="check"><input id="hf" type="checkbox" checked> 머리글·쪽번호</label>
     <button id="pdf" class="primary" type="button">PDF 다운로드</button>
@@ -136,7 +137,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const src = $('src'), preview = $('preview'), main = $('main'), statusEl = $('status'), imagesEl = $('images');
-  const titleEl = $('title'), paperEl = $('paper'), hfEl = $('hf'), pdfBtn = $('pdf'), docEl = $('doc');
+  const titleEl = $('title'), themeEl = $('theme'), paperEl = $('paper'), hfEl = $('hf'), pdfBtn = $('pdf'), docEl = $('doc');
 
   const IMG_RE = /\.(png|jpe?g|gif|webp|avif|bmp|ico|svg)$/i;
   const MD_RE = /\.(md|markdown|txt)$/i;
@@ -184,7 +185,7 @@
       const res = await fetch('/api/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markdown: src.value, title: titleEl.value || 'document', base }),
+        body: JSON.stringify({ markdown: src.value, title: titleEl.value || 'document', theme: themeEl.value || 'github', base }),
       });
       if (!res.ok) throw new Error(await res.text());
       const html = await res.text();
@@ -225,6 +226,7 @@
   src.addEventListener('input', () => { store.set('draft', src.value); scheduleRender(); });
   titleEl.addEventListener('input', () => store.set('title', titleEl.value));
   titleEl.addEventListener('change', scheduleRender);
+  themeEl.addEventListener('change', () => { store.set('theme', themeEl.value); render(); });
   paperEl.addEventListener('change', () => store.set('paper', paperEl.value));
   hfEl.addEventListener('change', () => store.set('hf', hfEl.checked ? '1' : '0'));
 
@@ -391,7 +393,7 @@
       const res = await fetch('/api/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markdown: src.value, title, paper: paperEl.value, headerFooter: hfEl.checked, base }),
+        body: JSON.stringify({ markdown: src.value, title, theme: themeEl.value || 'github', paper: paperEl.value, headerFooter: hfEl.checked, base }),
       });
       if (!res.ok) throw new Error(await res.text());
       const url = URL.createObjectURL(await res.blob());
@@ -411,11 +413,15 @@
   /* ---- 초기화 ---- */
   (async () => {
     try {
-      const { paperSizes } = await (await fetch('/api/config')).json();
+      const { paperSizes, themes } = await (await fetch('/api/config')).json();
       paperEl.innerHTML = paperSizes.map((s) => `<option>${s}</option>`).join('');
+      themeEl.innerHTML = themes.map((t) => `<option value="${t.id}">${t.label.replace(/</g, '&lt;')}</option>`).join('');
     } catch {
       paperEl.innerHTML = '<option>A4</option>';
+      themeEl.innerHTML = '<option value="github">GitHub</option>';
     }
+    themeEl.value = store.get('theme') || 'github';
+    if (!themeEl.value) themeEl.value = 'github';
     paperEl.value = store.get('paper') || 'A4';
     if (!paperEl.value) paperEl.value = 'A4';
     hfEl.checked = store.get('hf') !== '0';

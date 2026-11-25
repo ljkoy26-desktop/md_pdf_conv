@@ -1,0 +1,24 @@
+/* @label 보고서 (명조)
+   @hljs vs
+   흑백 위주의 공문서·보고서 스타일 */
+:root {
+  --fg: #111;
+  --muted: #444;
+  --border: #888;
+  --link: #1a4d8f;
+  --code-bg: #f2f2f2;
+  --pre-bg: #f7f7f7;
+  --th-bg: #ececec;
+  --heading-border: #111;
+  --font: "Noto Serif KR", "Nanum Myeongjo", "나눔명조", "Batang", "바탕", serif;
+  --heading-font: "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif;
+  --font-size: 11pt;
+  --line-height: 1.75;
+}
+.markdown-body h1 { text-align: center; border-bottom: 2px solid var(--heading-border); }
+.markdown-body h2 { border-bottom-width: 1px; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3 { font-weight: 700; }
+.markdown-body th, .markdown-body td { padding: 5px 10px; }
+.markdown-body pre, .markdown-body :not(pre) > code { border-radius: 2px; }
+.markdown-body pre { border: 1px solid #ddd; }
+.markdown-body blockquote { border-left-color: #111; font-style: normal; }

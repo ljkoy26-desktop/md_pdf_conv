@@ -1,0 +1,14 @@
+/* @label 세피아 (종이)
+   @hljs atom-one-light
+   따뜻한 종이 색 배경, 눈이 편한 읽기용 */
+:root {
+  --fg: #433422;
+  --bg: #fbf5e9;
+  --muted: #7a6a55;
+  --border: #e0d3bc;
+  --link: #a1531d;
+  --code-bg: #f1e7d4;
+  --pre-bg: #f4ecdc;
+  --th-bg: #f1e7d4;
+  --heading-fg: #2f2416;
+}
